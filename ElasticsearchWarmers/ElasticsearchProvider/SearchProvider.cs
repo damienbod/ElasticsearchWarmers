@@ -4,6 +4,7 @@ using System.Threading;
 using ElasticsearchCRUD;
 using ElasticsearchCRUD.ContextAddDeleteUpdate.IndexModel.SettingsModel;
 using ElasticsearchCRUD.ContextSearch.SearchModel;
+using ElasticsearchCRUD.ContextWarmers;
 using ElasticsearchCRUD.Model.SearchModel;
 using ElasticsearchCRUD.Model.SearchModel.Filters;
 using ElasticsearchCRUD.Model.SearchModel.Queries;
@@ -13,7 +14,7 @@ namespace ElasticsearchWarmers.ElasticsearchProvider
 	public class SearchProvider
 	{
 		private readonly IElasticsearchMappingResolver _elasticsearchMappingResolver = new ElasticsearchMappingResolver();
-		private const string ConnectionString = "http://localhost:9200";
+		private const string ConnectionString = "http://localhost.fiddler:9200";
 		private readonly ElasticsearchContext _context;
 
 		public SearchProvider()
@@ -25,7 +26,7 @@ namespace ElasticsearchWarmers.ElasticsearchProvider
 		{
 			var search = new Search
 			{
-				Query = new Query(new FuzzyQuery("data", searchTerm)),
+				Query = new Query(new MatchAllQuery()),
 			};
 			
 			var hits = _context.Search<FastestAnimal>(search, new SearchUrlParameters { Pretty = true });
@@ -224,10 +225,26 @@ namespace ElasticsearchWarmers.ElasticsearchProvider
 			_context.SaveChanges();
 		}
 
+		public void AddWarmerToIndex()
+		{
+			_context.WarmerCreate(new Warmer("all")
+			{
+				Query = new Query(
+					new MatchAllQuery()
+				)
+			}, "fastestanimals");
+		}
+
+		public void DeleteWarmerFromIndex()
+		{
+			_context.WarmerDelete("all", "fastestanimals");
+		}
+
 		public void DeleteIndexIfItExists()
 		{
 			if (_context.IndexExists<FastestAnimal>())
 			{
+				_context.AllowDeleteForIndex = true;
 				_context.DeleteIndex<FastestAnimal>();
 			}
 			Thread.Sleep(1200);
